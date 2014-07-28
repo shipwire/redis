@@ -27,13 +27,13 @@ type Conn struct {
 // Dial connects to the redis server.
 func Dial(network, address string) (*Conn, error) {
 	c, err := net.Dial(network, address)
-	return &Conn{Conn: c}, err
+	return &Conn{Conn: c, commandLock: &sync.Mutex{}}, err
 }
 
 // DialTimeout acts like Dial but takes a timeout. The timeout includes name resolution, if required.
 func DialTimeout(network, address string, timeout time.Duration) (*Conn, error) {
 	c, err := net.DialTimeout(network, address, timeout)
-	return &Conn{Conn: c}, err
+	return &Conn{Conn: c, commandLock: &sync.Mutex{}}, err
 }
 
 // RawCmd sends a raw command to the redis server
