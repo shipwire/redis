@@ -44,8 +44,8 @@ func (p *Pool) put(c *Conn) error {
 // Conn attempts to get or create a connection, depending on if there
 // are any idle connections.
 func (p *Pool) Conn() (*Conn, error) {
-	client := p.pool.Get().(*Conn)
-	if client == nil {
+	client, ok := p.pool.Get().(*Conn)
+	if client == nil || !ok {
 		return p.newConn()
 	}
 	p.idle -= 1
