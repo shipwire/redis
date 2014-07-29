@@ -4,8 +4,11 @@ package resp
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"strconv"
 
 	"bitbucket.org/shipwire/forkedReader"
@@ -38,20 +41,18 @@ var (
 	InvalidType           = errors.New("wrong redis type requested")
 )
 
-// RESP holds an uninterpreted value in REdis Serialization Protocol. Values may be read
+// RESP reads successive values in REdis Serialization Protocol. Values may be read
 // by the method for their correct type. While type can be checked as many times as the caller
 // wishes, each value may only be read once.
 type RESP struct {
-	r         *bufio.Reader
+	r         io.Reader
 	length    int64
 	redisType RedisType
 }
 
 // New creates a new RESP value from the given reader.
 func New(r io.Reader) *RESP {
-	return &RESP{
-		r: bufio.NewReader(r),
-	}
+	return &RESP{r: r}
 }
 
 // Type determines the redis type of a RESP.
@@ -81,12 +82,13 @@ func (r *RESP) Type() RedisType {
 	return r.redisType
 }
 
-func extractLength(r io.Reader) (int64, error) {
-	scanner := bufio.NewScanner(r)
-	if !scanner.Scan() {
-		return 0, scanner.Err()
-	}
-	return strconv.ParseInt(scanner.Text(), 10, 64)
+func (r *RESP) resetType() {
+	r.redisType = Unknown
+}
+
+func extractLength(r io.Reader) (i int64, err error) {
+	_, err = fmt.Fscanf(r, "%d\r\n", &i)
+	return
 }
 
 // SimpleString returns the value of a RESP as a simple string
@@ -94,6 +96,7 @@ func (r *RESP) SimpleString() (string, error) {
 	if r.Type() != SimpleString {
 		return "", InvalidType
 	}
+	defer r.resetType()
 
 	scanner := bufio.NewScanner(r.r)
 	if !scanner.Scan() {
@@ -107,6 +110,8 @@ func (r *RESP) Error() error {
 	if r.Type() != Error {
 		return InvalidType
 	}
+	defer r.resetType()
+
 	scanner := bufio.NewScanner(r.r)
 	if !scanner.Scan() {
 		return scanner.Err()
@@ -119,6 +124,8 @@ func (r *RESP) Int() (int64, error) {
 	if r.Type() != Integer {
 		return 0, InvalidType
 	}
+	defer r.resetType()
+
 	scanner := bufio.NewScanner(r.r)
 	if !scanner.Scan() {
 		return 0, scanner.Err()
@@ -131,9 +138,10 @@ func (r *RESP) BulkString() (io.Reader, error) {
 	if r.Type() != BulkString {
 		return nil, InvalidType
 	}
+	defer r.resetType()
 
 	head, tail := fork.ForkReader(r.r, int(r.length+2))
-	r.r = bufio.NewReader(tail)
+	r.r = tail
 	return io.LimitReader(head, r.length), nil
 }
 
@@ -143,6 +151,7 @@ func (r *RESP) Array() (*RESPArray, error) {
 	if r.Type() != Array {
 		return nil, InvalidType
 	}
+	defer r.resetType()
 
 	elements := make(chan *RESP)
 	array := &RESPArray{
@@ -159,6 +168,45 @@ func (r *RESP) Array() (*RESPArray, error) {
 	}()
 
 	return array, nil
+}
+
+func (r *RESP) String() string {
+	switch r.Type() {
+	case SimpleString:
+		s, err := r.SimpleString()
+		if err != nil {
+			return err.Error()
+		}
+		return s
+	case Error:
+		return r.Error().Error()
+	case Integer:
+		i, err := r.Int()
+		if err != nil {
+			return err.Error()
+		}
+		return fmt.Sprint(i)
+	case BulkString:
+		b, err := r.BulkString()
+		if err != nil {
+			return err.Error()
+		}
+		s, err := ioutil.ReadAll(b)
+		if err != nil {
+			return err.Error()
+		}
+		return string(s)
+	case Array:
+		a, err := r.Array()
+		if err != nil {
+			return err.Error()
+		}
+		return a.String()
+	case Null:
+		return "NULL"
+	default:
+		return "Invalid RESP format"
+	}
 }
 
 // RESPArray contains a sequence of RESP items.
@@ -189,4 +237,20 @@ func (r *RESPArray) Cache() {
 // Len returns the total number of items in the RESPArray.
 func (r *RESPArray) Len() int {
 	return r.length
+}
+
+func (r *RESPArray) String() string {
+	buf := bytes.NewBufferString("[")
+	buf.WriteString(r.Next().String())
+
+	first := false
+	for elem := r.Next(); elem != nil; r.Next() {
+		if !first {
+			buf.WriteString(",")
+		}
+		buf.WriteString(elem.String())
+	}
+
+	buf.WriteString("]")
+	return buf.String()
 }

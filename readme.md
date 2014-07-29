@@ -132,6 +132,8 @@ func (p *Pool) Conn() (*Conn, error)
 ```
 Conn attempts to get or create a connection, depending on if there are any idle
 connections.
+# cli
+--
 # resp
 --
     import "bitbucket.org/shipwire/redis/resp"
@@ -156,9 +158,9 @@ type RESP struct {
 }
 ```
 
-RESP holds an uninterpreted value in REdis Serialization Protocol. Values may be
-read by the method for their correct type. While type can be checked as many
-times as the caller wishes, each value may only be read once.
+RESP reads successive values in REdis Serialization Protocol. Values may be read
+by the method for their correct type. While type can be checked as many times as
+the caller wishes, each value may only be read once.
 
 #### func  New
 
@@ -203,6 +205,12 @@ func (r *RESP) SimpleString() (string, error)
 ```
 SimpleString returns the value of a RESP as a simple string
 
+#### func (*RESP) String
+
+```go
+func (r *RESP) String() string
+```
+
 #### func (*RESP) Type
 
 ```go
@@ -240,6 +248,12 @@ Len returns the total number of items in the RESPArray.
 func (r *RESPArray) Next() *RESP
 ```
 Next returns the next RESP item in the RESPArray.
+
+#### func (*RESPArray) String
+
+```go
+func (r *RESPArray) String() string
+```
 
 #### type RedisType
 
