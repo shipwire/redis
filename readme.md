@@ -132,7 +132,7 @@ func (p *Pool) Conn() (*Conn, error)
 ```
 Conn attempts to get or create a connection, depending on if there are any idle
 connections.
-# cli
+# redis
 --
 # resp
 --
