@@ -22,18 +22,23 @@ type Conn struct {
 	whence       *Pool
 	openCommands int
 	commandLock  *sync.Mutex
+	reply        *resp.RESP
 }
 
 // Dial connects to the redis server.
 func Dial(network, address string) (*Conn, error) {
 	c, err := net.Dial(network, address)
-	return &Conn{Conn: c, commandLock: &sync.Mutex{}}, err
+	conn := &Conn{Conn: c, commandLock: &sync.Mutex{}}
+	conn.reply = resp.New(c)
+	return conn, err
 }
 
 // DialTimeout acts like Dial but takes a timeout. The timeout includes name resolution, if required.
 func DialTimeout(network, address string, timeout time.Duration) (*Conn, error) {
 	c, err := net.DialTimeout(network, address, timeout)
-	return &Conn{Conn: c, commandLock: &sync.Mutex{}}, err
+	conn := &Conn{Conn: c, commandLock: &sync.Mutex{}}
+	conn.reply = resp.New(c)
+	return conn, err
 }
 
 // RawCmd sends a raw command to the redis server
@@ -59,8 +64,10 @@ func (c *Conn) RawCmd(command string, args ...string) error {
 func (c *Conn) Command(command string, args int) (*Cmd, error) {
 	c.commandLock.Lock()
 
-	fmt.Fprintf(c, "*%d\r\n$%d\r\n", args, len(command))
-	return &Cmd{c, c}, nil
+	fmt.Fprintf(c, "*%d\r\n", args+1)
+	cmd := &Cmd{c, c}
+	cmd.WriteArgumentString(command)
+	return cmd, nil
 }
 
 // Resp reads a RESP from the connection
@@ -68,7 +75,7 @@ func (c *Conn) Resp() *resp.RESP {
 	defer func() {
 		c.openCommands -= 1
 	}()
-	return resp.New(c)
+	return c.reply
 }
 
 // Cmd is a command that is currently being written to a connection.
