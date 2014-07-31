@@ -43,10 +43,6 @@ func DialTimeout(network, address string, timeout time.Duration) (*Conn, error) 
 
 // RawCmd sends a raw command to the redis server
 func (c *Conn) RawCmd(command string, args ...string) error {
-	c.commandLock.Lock()
-	defer c.commandLock.Unlock()
-
-	c.openCommands += 1
 
 	cmd, err := c.Command(command, len(args))
 	if err != nil {
@@ -63,6 +59,7 @@ func (c *Conn) RawCmd(command string, args ...string) error {
 // only allows one open command at a time and will block callers to prevent jumbled queues.
 func (c *Conn) Command(command string, args int) (*Cmd, error) {
 	c.commandLock.Lock()
+	c.openCommands += 1
 
 	fmt.Fprintf(c, "*%d\r\n", args+1)
 	cmd := &Cmd{c, c}
