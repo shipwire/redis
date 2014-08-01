@@ -132,6 +132,46 @@ func (p *Pool) Conn() (*Conn, error)
 ```
 Conn attempts to get or create a connection, depending on if there are any idle
 connections.
+# pubsub
+--
+    import "bitbucket.org/shipwire/redis/pubsub"
+
+
+## Usage
+
+#### type Publisher
+
+```go
+type Publisher struct {
+}
+```
+
+
+#### type Subscription
+
+```go
+type Subscription struct {
+}
+```
+
+
+#### func  Subscribe
+
+```go
+func Subscribe(channel string, conn *redis.Conn) *Subscription
+```
+
+#### func (*Subscription) Next
+
+```go
+func (s *Subscription) Next() *RESP
+```
+
+#### func (*Subscription) WaitForNext
+
+```go
+func (s *Subscription) WaitForNext() *RESP
+```
 # redis
 --
 # resp
