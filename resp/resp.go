@@ -59,9 +59,12 @@ func New(r io.Reader) *RESP {
 func (r *RESP) Type() RedisType {
 	if r.redisType == Unknown {
 		firstByte := make([]byte, 1)
-		_, err := r.r.Read(firstByte)
+		n, err := io.ReadFull(r.r, firstByte)
 		if err != nil {
 			return Invalid
+		}
+		if n != 1 {
+			return Unknown
 		}
 
 		t := redisTypeMap[string(firstByte)]
