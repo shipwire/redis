@@ -72,8 +72,7 @@ func (r *RESP) Type() RedisType {
 		case BulkString, Array:
 			r.length, err = extractLength(r.r)
 			if r.length == -1 {
-				r.redisType = Null
-				break
+				return Null
 			}
 			fallthrough
 		case SimpleString, Integer, Error:
