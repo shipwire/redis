@@ -295,6 +295,20 @@ Next returns the next RESP item in the RESPArray.
 func (r *RESPArray) String() string
 ```
 
+#### type RESPStream
+
+```go
+type RESPStream struct {
+}
+```
+
+
+#### func (*RESPStream) Channel
+
+```go
+func (r *RESPStream) Channel() <-chan *RESP
+```
+
 #### type RedisType
 
 ```go
