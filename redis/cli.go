@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -29,12 +30,21 @@ func main() {
 		conn, err = redis.DialTimeout(*network, *host, time.Duration(*timeout)*time.Second)
 	}
 
-	fmt.Println("Connection established")
+	killChan := make(chan os.Signal, 1)
+	signal.Notify(killChan, os.Kill, os.Interrupt)
+	go func() {
+		<-killChan
+		conn.Close()
+		fmt.Println()
+		os.Exit(0)
+	}()
 
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	fmt.Println("Connection established")
 
 	for {
 		scanCommands(conn)
@@ -61,21 +71,30 @@ func scanCommands(conn *redis.Conn) {
 			line = append(line, more...)
 		}
 		reply := scanCommand(conn, string(line))
-		fmt.Println(reply)
+		if reply != nil {
+			fmt.Println(reply)
+		}
 	}
 }
 
 func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
 	cmdName, args := extractCommand(cmdText)
-	cmd, _ := conn.Command(cmdName, len(args))
-	for _, arg := range args {
-		cmd.WriteArgumentString(arg)
+	switch strings.ToLower(cmdName) {
+	case "exit", "quit":
+		os.Exit(0)
+	case "":
+	default:
+		cmd, _ := conn.Command(cmdName, len(args))
+		for _, arg := range args {
+			cmd.WriteArgumentString(arg)
+		}
+		err := cmd.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+		return conn.Resp()
 	}
-	err := cmd.Close()
-	if err != nil {
-		fmt.Println(err)
-	}
-	return conn.Resp()
+	return nil
 }
 
 func extractCommand(cmdText string) (string, []string) {
