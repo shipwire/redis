@@ -48,11 +48,16 @@ func (c *Conn) RawCmd(command string, args ...string) error {
 	if err != nil {
 		return err
 	}
+	defer cmd.Close()
 
 	for _, arg := range args {
-		cmd.WriteArgumentString(arg)
+		_, err := cmd.WriteArgumentString(arg)
+		if err != nil {
+			c.Destroy()
+			return err
+		}
 	}
-	return cmd.Close()
+	return nil
 }
 
 // Command initializes a command with the given number of arguments. The connection
@@ -65,6 +70,21 @@ func (c *Conn) Command(command string, args int) (*Cmd, error) {
 	cmd := &Cmd{c, c}
 	cmd.WriteArgumentString(command)
 	return cmd, nil
+}
+
+// Close either releases the connection back into the pool from whence it came, or, it
+// actually destroys the connection.
+func (c *Conn) Close() error {
+	if c.whence != nil {
+		return c.whence.put(c)
+	} else {
+		return c.Destroy()
+	}
+}
+
+// Destory always destroys the connection.
+func (c *Conn) Destroy() error {
+	return c.Conn.Close()
 }
 
 // Resp reads a RESP from the connection

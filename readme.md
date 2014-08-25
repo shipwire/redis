@@ -76,6 +76,14 @@ func DialTimeout(network, address string, timeout time.Duration) (*Conn, error)
 DialTimeout acts like Dial but takes a timeout. The timeout includes name
 resolution, if required.
 
+#### func (*Conn) Close
+
+```go
+func (c *Conn) Close() error
+```
+Close either releases the connection back into the pool from whence it came, or,
+it actually destroys the connection.
+
 #### func (*Conn) Command
 
 ```go
@@ -84,6 +92,13 @@ func (c *Conn) Command(command string, args int) (*Cmd, error)
 Command initializes a command with the given number of arguments. The connection
 only allows one open command at a time and will block callers to prevent jumbled
 queues.
+
+#### func (*Conn) Destroy
+
+```go
+func (c *Conn) Destroy() error
+```
+Destory always destroys the connection.
 
 #### func (*Conn) RawCmd
 
