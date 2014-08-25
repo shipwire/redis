@@ -2,7 +2,6 @@
 package redis
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,8 +12,6 @@ import (
 
 	"bitbucket.org/shipwire/redis/resp"
 )
-
-var CommandInProgress = errors.New("command in progress")
 
 // Conn represents an open connection to a redis server.
 type Conn struct {
@@ -43,7 +40,6 @@ func DialTimeout(network, address string, timeout time.Duration) (*Conn, error) 
 
 // RawCmd sends a raw command to the redis server
 func (c *Conn) RawCmd(command string, args ...string) error {
-
 	cmd, err := c.Command(command, len(args))
 	if err != nil {
 		return err

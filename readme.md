@@ -6,10 +6,6 @@ Redis implements basic connections and pooling to redis servers.
 
 ## Usage
 
-```go
-var CommandInProgress = errors.New("command in progress")
-```
-
 #### type Cmd
 
 ```go
