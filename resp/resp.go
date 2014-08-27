@@ -11,7 +11,7 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"bitbucket.org/shipwire/forkedReader"
+	"bitbucket.org/shipwire/swio"
 )
 
 // RedisType represents one of the five types RESP values may take or it is unknown or invalid.
@@ -142,7 +142,7 @@ func (r *RESP) BulkString() (io.Reader, error) {
 	}
 	defer r.resetType()
 
-	head, tail := fork.ForkReader(r.r, int(r.length+2))
+	head, tail := swio.ForkReader(r.r, int(r.length+2))
 	r.r = tail
 	return io.LimitReader(head, r.length), nil
 }
