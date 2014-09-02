@@ -6,10 +6,6 @@ Redis implements basic connections and pooling to redis servers.
 
 ## Usage
 
-```go
-var CommandInProgress = errors.New("command in progress")
-```
-
 #### type Cmd
 
 ```go
@@ -76,6 +72,14 @@ func DialTimeout(network, address string, timeout time.Duration) (*Conn, error)
 DialTimeout acts like Dial but takes a timeout. The timeout includes name
 resolution, if required.
 
+#### func (*Conn) Close
+
+```go
+func (c *Conn) Close() error
+```
+Close either releases the connection back into the pool from whence it came, or,
+it actually destroys the connection.
+
 #### func (*Conn) Command
 
 ```go
@@ -84,6 +88,13 @@ func (c *Conn) Command(command string, args int) (*Cmd, error)
 Command initializes a command with the given number of arguments. The connection
 only allows one open command at a time and will block callers to prevent jumbled
 queues.
+
+#### func (*Conn) Destroy
+
+```go
+func (c *Conn) Destroy() error
+```
+Destory always destroys the connection.
 
 #### func (*Conn) RawCmd
 
@@ -132,46 +143,6 @@ func (p *Pool) Conn() (*Conn, error)
 ```
 Conn attempts to get or create a connection, depending on if there are any idle
 connections.
-# pubsub
---
-    import "bitbucket.org/shipwire/redis/pubsub"
-
-
-## Usage
-
-#### type Publisher
-
-```go
-type Publisher struct {
-}
-```
-
-
-#### type Subscription
-
-```go
-type Subscription struct {
-}
-```
-
-
-#### func  Subscribe
-
-```go
-func Subscribe(channel string, conn *redis.Conn) *Subscription
-```
-
-#### func (*Subscription) Next
-
-```go
-func (s *Subscription) Next() *RESP
-```
-
-#### func (*Subscription) WaitForNext
-
-```go
-func (s *Subscription) WaitForNext() *RESP
-```
 # redis
 --
 # resp
@@ -293,20 +264,6 @@ Next returns the next RESP item in the RESPArray.
 
 ```go
 func (r *RESPArray) String() string
-```
-
-#### type RESPStream
-
-```go
-type RESPStream struct {
-}
-```
-
-
-#### func (*RESPStream) Channel
-
-```go
-func (r *RESPStream) Channel() <-chan *RESP
 ```
 
 #### type RedisType
