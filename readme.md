@@ -143,6 +143,27 @@ func (p *Pool) Conn() (*Conn, error)
 ```
 Conn attempts to get or create a connection, depending on if there are any idle
 connections.
+
+#### func (*Pool) Subscribe
+
+```go
+func (p *Pool) Subscribe(channel string, ch chan<- *resp.RESP) (*Subscription, error)
+```
+
+#### type Publisher
+
+```go
+type Publisher struct {
+}
+```
+
+
+#### type Subscription
+
+```go
+type Subscription struct {
+}
+```
 # redis
 --
 # resp
@@ -264,6 +285,20 @@ Next returns the next RESP item in the RESPArray.
 
 ```go
 func (r *RESPArray) String() string
+```
+
+#### type RESPStream
+
+```go
+type RESPStream struct {
+}
+```
+
+
+#### func (*RESPStream) Channel
+
+```go
+func (r *RESPStream) Channel() <-chan *RESP
 ```
 
 #### type RedisType

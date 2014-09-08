@@ -22,6 +22,8 @@ type Pool struct {
 	// all idle connections should be preserved.
 	MaxIdle     int
 	ConnTimeout time.Duration
+
+	subscriptions *Subscription
 }
 
 // NewPool intializes a connection pool with default settings.

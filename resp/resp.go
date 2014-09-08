@@ -59,7 +59,7 @@ func New(r io.Reader) *RESP {
 func (r *RESP) Type() RedisType {
 	if r.redisType == Unknown {
 		firstByte := make([]byte, 1)
-		n, err := io.ReadFull(r.r, firstByte)
+		n, err := r.r.Read(firstByte)
 		if err != nil {
 			return Invalid
 		}
