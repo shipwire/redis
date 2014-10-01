@@ -16,6 +16,8 @@ import (
 	"bitbucket.org/shipwire/redis/resp"
 )
 
+var messages = make(chan *resp.RESP, 10)
+
 func main() {
 	network := flag.String("network", "tcp", "The type of network to connect on")
 	host := flag.String("host", "127.0.0.1:6379", "The location to connect to")
@@ -54,28 +56,46 @@ func main() {
 }
 
 func scanCommands(conn *redis.Conn) {
-	r := bufio.NewReader(os.Stdin)
+	cmds := readLines()
 	for {
 		io.WriteString(os.Stdout, "redis> ")
-		line, isPrefix, err := r.ReadLine()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+		select {
+		case cmd := <-cmds:
+			reply := scanCommand(conn, cmd)
+			if reply != nil {
+				fmt.Println("Reply:", reply)
+			}
+		case msg := <-messages:
+			fmt.Println()
+			fmt.Println("Published message:", msg)
 		}
-		for isPrefix {
-			var more []byte
-			more, isPrefix, err = r.ReadLine()
+	}
+}
+
+func readLines() <-chan string {
+	ch := make(chan string)
+	go func() {
+		r := bufio.NewReader(os.Stdin)
+		for {
+			line, isPrefix, err := r.ReadLine()
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
 			}
-			line = append(line, more...)
+			for isPrefix {
+				var more []byte
+				more, isPrefix, err = r.ReadLine()
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				line = append(line, more...)
+			}
+			ch <- string(line)
 		}
-		reply := scanCommand(conn, string(line))
-		if reply != nil {
-			fmt.Println(reply)
-		}
-	}
+	}()
+
+	return ch
 }
 
 func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
@@ -85,8 +105,9 @@ func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
 		os.Exit(0)
 	case "":
 	case "subscribe", "psubscribe":
-		subscribe(conn, args)
-		return nil
+		return subscribe(conn, args)
+	case "unsubscribe", "punsubscribe":
+		return unsubscribe(conn, args)
 	default:
 		cmd, _ := conn.Command(cmdName, len(args))
 		for _, arg := range args {
@@ -101,20 +122,19 @@ func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
 	return nil
 }
 
-func subscribe(conn *redis.Conn, channels []string) {
-	messages := make(chan *resp.RESP, 10)
-	done := make(chan struct{}, 0)
-
-	err := conn.Subscribe(strings.Join(channels, " "), messages, done)
+func subscribe(conn *redis.Conn, channels []string) *resp.RESP {
+	err := conn.Subscribe(strings.Join(channels, " "), messages)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return nil
 	}
 
-	for {
-		r := <-messages
-		fmt.Println(r)
-	}
+	return nil
+}
+
+func unsubscribe(conn *redis.Conn, channels []string) *resp.RESP {
+	conn.Unsubscribe(strings.Join(channels, " "), messages)
+	return nil
 }
 
 func extractCommand(cmdText string) (string, []string) {

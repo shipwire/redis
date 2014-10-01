@@ -116,12 +116,18 @@ Resp reads a RESP from the connection
 #### func (*Conn) Subscribe
 
 ```go
-func (c *Conn) Subscribe(channel string, messages chan<- *resp.RESP, done <-chan struct{}) error
+func (c *Conn) Subscribe(channel string, messages chan<- *resp.RESP) error
 ```
 Subscribe listens on c for published messages on the a channel. This method will
 either return an error right away or block while sending received messages on
 the messges channel until it receives a signal on the done channel. This
 connection should not be reused for another purpose.
+
+#### func (*Conn) Unsubscribe
+
+```go
+func (c *Conn) Unsubscribe(channel string, messages chan<- *resp.RESP)
+```
 
 #### type Pool
 

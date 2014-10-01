@@ -25,7 +25,8 @@ type Conn struct {
 	openCommands int
 	commandLock  *sync.Mutex
 	reply        *resp.RESP
-	unsubscribe  chan struct{}
+
+	sub *sub
 }
 
 // Dial connects to the redis server.

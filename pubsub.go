@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"sync"
-	"time"
 
 	"bitbucket.org/shipwire/redis/resp"
 )
@@ -50,28 +49,51 @@ func (p *Pool) Subscribe(channel string, ch chan<- *resp.RESP) error {
 // Subscribe listens on c for published messages on the a channel. This method will either return
 // an error right away or block while sending received messages on the messges channel until it
 // receives a signal on the done channel. This connection should not be reused for another purpose.
-func (c *Conn) Subscribe(channel string, messages chan<- *resp.RESP, done <-chan struct{}) error {
+func (c *Conn) Subscribe(channel string, messages chan<- *resp.RESP) error {
 	c.whence = nil
 	err := c.RawCmd("SUBSCRIBE", channel)
 	if err != nil {
 		return err
 	}
 
-	s := sub{
-		conn: c,
-		done: done,
-		subscriptions: map[string]*subscription{
-			channel: {
-				subscribers: map[chan<- *resp.RESP]struct{}{messages: struct{}{}},
-				channel:     channel,
-				done:        done,
-			},
-		},
-		subscriptionsLock: &sync.RWMutex{},
+	if c.sub == nil {
+		c.sub = &sub{
+			conn:              c,
+			subscriptions:     map[string]*subscription{},
+			subscriptionsLock: &sync.RWMutex{},
+		}
+		c.sub.watch()
+	}
+	c.sub.subscriptionsLock.Lock()
+	defer c.sub.subscriptionsLock.Unlock()
+
+	s, ok := c.sub.subscriptions[channel]
+	if !ok {
+		s = &subscription{
+			make(map[chan<- *resp.RESP]struct{}),
+			channel,
+			make(chan struct{}),
+		}
 	}
 
-	s.watch()
+	s.subscribers[messages] = struct{}{}
+	c.sub.subscriptions[channel] = s
+
 	return nil
+}
+
+func (c *Conn) Unsubscribe(channel string, messages chan<- *resp.RESP) {
+	if c.sub == nil {
+		return
+	}
+
+	c.sub.subscriptionsLock.Lock()
+	defer c.sub.subscriptionsLock.Unlock()
+
+	s, ok := c.sub.subscriptions[channel]
+	if ok {
+		delete(s.subscribers, messages)
+	}
 }
 
 // Unsubscribe unregisters a channel of RESP values from a redis pubsub channel. If
@@ -125,15 +147,15 @@ func (p *sub) watch() {
 
 func (p *sub) read() {
 	switch p.conn.Resp().Type() {
-	case resp.Unknown:
-		time.Sleep(1 * time.Millisecond)
+	case resp.Unknown: // do nothing, we haven't read yet
 	case resp.Invalid:
 		panic("redis pubsub: invalid message received")
 	case resp.Array:
 		arr, _ := p.conn.Resp().Array()
 		p.receive(arr)
 	default:
-		panic(fmt.Sprint("redis pubsub: wrong type message received. Got:", p.conn.Resp().Type()))
+		r := p.conn.Resp()
+		panic(fmt.Sprint("redis pubsub: wrong type message received. Got:", r.Type(), r))
 	}
 }
 
@@ -159,7 +181,7 @@ func (p *sub) receive(r *resp.RESPArray) {
 
 	switch string(b) {
 	case "subscribe", "unsubscribe":
-		fmt.Println("Number of subscriptions", r.Next())
+		fmt.Sprint(r.Next())
 		return
 	}
 
