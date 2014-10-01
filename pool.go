@@ -23,7 +23,7 @@ type Pool struct {
 	MaxIdle     int
 	ConnTimeout time.Duration
 
-	subscriptions *Subscription
+	sub *sub
 }
 
 // NewPool intializes a connection pool with default settings.

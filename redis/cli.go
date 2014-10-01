@@ -83,6 +83,9 @@ func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
 	case "exit", "quit":
 		os.Exit(0)
 	case "":
+	case "subscribe", "psubscribe":
+		subscribe(conn, args)
+		return nil
 	default:
 		cmd, _ := conn.Command(cmdName, len(args))
 		for _, arg := range args {
@@ -95,6 +98,22 @@ func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
 		return conn.Resp()
 	}
 	return nil
+}
+
+func subscribe(conn *redis.Conn, channels []string) {
+	messages := make(chan *resp.RESP, 10)
+	done := make(chan struct{}, 0)
+
+	err := conn.Subscribe(strings.Join(channels, " "), messages, done)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for {
+		r := <-messages
+		fmt.Println(r)
+	}
 }
 
 func extractCommand(cmdText string) (string, []string) {

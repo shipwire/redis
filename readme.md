@@ -110,6 +110,16 @@ func (c *Conn) Resp() *resp.RESP
 ```
 Resp reads a RESP from the connection
 
+#### func (*Conn) Subscribe
+
+```go
+func (c *Conn) Subscribe(channel string, messages chan<- *resp.RESP, done <-chan struct{}) error
+```
+Subscribe listens on c for published messages on the a channel. This method will
+either return an error right away or block while sending received messages on
+the messges channel until it receives a signal on the done channel. This
+connection shoul not be reused for another purpose.
+
 #### type Pool
 
 ```go
@@ -147,23 +157,18 @@ connections.
 #### func (*Pool) Subscribe
 
 ```go
-func (p *Pool) Subscribe(channel string, ch chan<- *resp.RESP) (*Subscription, error)
+func (p *Pool) Subscribe(channel string, ch chan<- *resp.RESP) error
 ```
+Subscribe registers a channel of RESP values to a redis pubsub channel.
 
-#### type Publisher
+#### func (*Pool) Unsubscribe
 
 ```go
-type Publisher struct {
-}
+func (p *Pool) Unsubscribe(channel string, ch chan<- *resp.RESP) error
 ```
-
-
-#### type Subscription
-
-```go
-type Subscription struct {
-}
-```
+Unsubscribe unregisters a channel of RESP values from a redis pubsub channel. If
+and after Unsubscribe returns with no error, it is guaranteed that ch will
+receive no more messages.
 # redis
 --
 # resp
@@ -321,4 +326,10 @@ const (
 	Array
 	Null
 )
+```
+
+#### func (RedisType) String
+
+```go
+func (r RedisType) String() string
 ```
