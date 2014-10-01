@@ -49,8 +49,9 @@ func (p *Pool) Subscribe(channel string, ch chan<- *resp.RESP) error {
 
 // Subscribe listens on c for published messages on the a channel. This method will either return
 // an error right away or block while sending received messages on the messges channel until it
-// receives a signal on the done channel. This connection shoul not be reused for another purpose.
+// receives a signal on the done channel. This connection should not be reused for another purpose.
 func (c *Conn) Subscribe(channel string, messages chan<- *resp.RESP, done <-chan struct{}) error {
+	c.whence = nil
 	err := c.RawCmd("SUBSCRIBE", channel)
 	if err != nil {
 		return err
