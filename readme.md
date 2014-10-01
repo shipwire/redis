@@ -126,8 +126,11 @@ connection should not be reused for another purpose.
 #### func (*Conn) Unsubscribe
 
 ```go
-func (c *Conn) Unsubscribe(channel string, messages chan<- *resp.RESP)
+func (c *Conn) Unsubscribe(channel string, ch chan<- *resp.RESP)
 ```
+Unsubscribe unregisters a channel from receiving messages on a redis channel.
+After unsubscribe returns, it is guaranteed that ch will receive no more
+messages.
 
 #### type Pool
 

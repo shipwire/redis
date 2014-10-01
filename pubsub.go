@@ -82,7 +82,9 @@ func (c *Conn) Subscribe(channel string, messages chan<- *resp.RESP) error {
 	return nil
 }
 
-func (c *Conn) Unsubscribe(channel string, messages chan<- *resp.RESP) {
+// Unsubscribe unregisters a channel from receiving messages on a redis channel.
+// After unsubscribe returns, it is guaranteed that ch will receive no more messages.
+func (c *Conn) Unsubscribe(channel string, ch chan<- *resp.RESP) {
 	if c.sub == nil {
 		return
 	}
@@ -92,7 +94,7 @@ func (c *Conn) Unsubscribe(channel string, messages chan<- *resp.RESP) {
 
 	s, ok := c.sub.subscriptions[channel]
 	if ok {
-		delete(s.subscribers, messages)
+		delete(s.subscribers, ch)
 	}
 }
 
