@@ -1,3 +1,4 @@
+// Command redis is a CLI for redis.
 package main
 
 import (

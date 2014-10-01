@@ -36,6 +36,7 @@ var redisTypeMap map[string]RedisType = map[string]RedisType{
 	"*": Array,
 }
 
+// String returns a string representation of r.
 func (r RedisType) String() string {
 	switch r {
 	case SimpleString:
@@ -205,6 +206,7 @@ func (r *RESP) Array() (*RESPArray, error) {
 	return array, nil
 }
 
+// String returns a string representation of r. It consumes the content.
 func (r *RESP) String() string {
 	switch r.Type() {
 	case SimpleString:
@@ -275,6 +277,7 @@ func (r *RESPArray) Len() int {
 	return r.length
 }
 
+// String returns a string representation of r. It consumes all of r's elements.
 func (r *RESPArray) String() string {
 	buf := bytes.NewBufferString("[")
 	buf.WriteString(r.Next().String())

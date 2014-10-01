@@ -171,6 +171,7 @@ and after Unsubscribe returns with no error, it is guaranteed that ch will
 receive no more messages.
 # redis
 --
+Command redis is a CLI for redis.
 # resp
 --
     import "bitbucket.org/shipwire/redis/resp"
@@ -247,6 +248,7 @@ SimpleString returns the value of a RESP as a simple string
 ```go
 func (r *RESP) String() string
 ```
+String returns a string representation of r. It consumes the content.
 
 #### func (*RESP) Type
 
@@ -291,20 +293,7 @@ Next returns the next RESP item in the RESPArray.
 ```go
 func (r *RESPArray) String() string
 ```
-
-#### type RESPStream
-
-```go
-type RESPStream struct {
-}
-```
-
-
-#### func (*RESPStream) Channel
-
-```go
-func (r *RESPStream) Channel() <-chan *RESP
-```
+String returns a string representation of r. It consumes all of r's elements.
 
 #### type RedisType
 
@@ -333,3 +322,4 @@ const (
 ```go
 func (r RedisType) String() string
 ```
+String returns a string representation of r.
