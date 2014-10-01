@@ -17,6 +17,7 @@ import (
 )
 
 var messages = make(chan *resp.RESP, 10)
+var subscriptionMode = false
 
 func main() {
 	network := flag.String("network", "tcp", "The type of network to connect on")
@@ -109,6 +110,11 @@ func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
 	case "unsubscribe", "punsubscribe":
 		return unsubscribe(conn, args)
 	default:
+		if subscriptionMode {
+			fmt.Println("ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this context")
+			return nil
+		}
+
 		cmd, _ := conn.Command(cmdName, len(args))
 		for _, arg := range args {
 			cmd.WriteArgumentString(arg)
@@ -123,6 +129,7 @@ func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
 }
 
 func subscribe(conn *redis.Conn, channels []string) *resp.RESP {
+	subscriptionMode = true
 	err := conn.Subscribe(strings.Join(channels, " "), messages)
 	if err != nil {
 		fmt.Println(err)

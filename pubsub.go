@@ -148,6 +148,8 @@ func (p *sub) watch() {
 func (p *sub) read() {
 	switch p.conn.Resp().Type() {
 	case resp.Unknown: // do nothing, we haven't read yet
+	case resp.Error:
+		p.conn.Resp().Error()
 	case resp.Invalid:
 		panic("redis pubsub: invalid message received")
 	case resp.Array:
