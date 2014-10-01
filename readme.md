@@ -4,6 +4,10 @@
 
 Redis implements basic connections and pooling to redis servers.
 
+This package operates with streams of data (io.Reader). As necessry the package
+will cache data locally before read by clients, for example when reading
+successive elements of an array before consuming each element's contents.
+
 ## Usage
 
 #### type Cmd
@@ -51,7 +55,6 @@ argument.
 
 ```go
 type Conn struct {
-	net.Conn
 }
 ```
 
