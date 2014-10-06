@@ -1,3 +1,4 @@
+// Command redis is a CLI for redis.
 package main
 
 import (
@@ -14,6 +15,9 @@ import (
 	"bitbucket.org/shipwire/redis"
 	"bitbucket.org/shipwire/redis/resp"
 )
+
+var messages = make(chan *resp.RESP, 10)
+var subscriptionMode = false
 
 func main() {
 	network := flag.String("network", "tcp", "The type of network to connect on")
@@ -53,28 +57,46 @@ func main() {
 }
 
 func scanCommands(conn *redis.Conn) {
-	r := bufio.NewReader(os.Stdin)
+	cmds := readLines()
 	for {
 		io.WriteString(os.Stdout, "redis> ")
-		line, isPrefix, err := r.ReadLine()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+		select {
+		case cmd := <-cmds:
+			reply := scanCommand(conn, cmd)
+			if reply != nil {
+				fmt.Println("Reply:", reply)
+			}
+		case msg := <-messages:
+			fmt.Println()
+			fmt.Println("Published message:", msg)
 		}
-		for isPrefix {
-			var more []byte
-			more, isPrefix, err = r.ReadLine()
+	}
+}
+
+func readLines() <-chan string {
+	ch := make(chan string)
+	go func() {
+		r := bufio.NewReader(os.Stdin)
+		for {
+			line, isPrefix, err := r.ReadLine()
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
 			}
-			line = append(line, more...)
+			for isPrefix {
+				var more []byte
+				more, isPrefix, err = r.ReadLine()
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				line = append(line, more...)
+			}
+			ch <- string(line)
 		}
-		reply := scanCommand(conn, string(line))
-		if reply != nil {
-			fmt.Println(reply)
-		}
-	}
+	}()
+
+	return ch
 }
 
 func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
@@ -83,7 +105,16 @@ func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
 	case "exit", "quit":
 		os.Exit(0)
 	case "":
+	case "subscribe", "psubscribe":
+		return subscribe(conn, args)
+	case "unsubscribe", "punsubscribe":
+		return unsubscribe(conn, args)
 	default:
+		if subscriptionMode {
+			fmt.Println("ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this context")
+			return nil
+		}
+
 		cmd, _ := conn.Command(cmdName, len(args))
 		for _, arg := range args {
 			cmd.WriteArgumentString(arg)
@@ -94,6 +125,22 @@ func scanCommand(conn *redis.Conn, cmdText string) *resp.RESP {
 		}
 		return conn.Resp()
 	}
+	return nil
+}
+
+func subscribe(conn *redis.Conn, channels []string) *resp.RESP {
+	subscriptionMode = true
+	err := conn.Subscribe(strings.Join(channels, " "), messages)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	return nil
+}
+
+func unsubscribe(conn *redis.Conn, channels []string) *resp.RESP {
+	conn.Unsubscribe(strings.Join(channels, " "), messages)
 	return nil
 }
 

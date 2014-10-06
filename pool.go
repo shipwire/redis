@@ -22,6 +22,8 @@ type Pool struct {
 	// all idle connections should be preserved.
 	MaxIdle     int
 	ConnTimeout time.Duration
+
+	sub *sub
 }
 
 // NewPool intializes a connection pool with default settings.
@@ -34,7 +36,7 @@ func NewPool() *Pool {
 
 func (p *Pool) put(c *Conn) error {
 	if p.MaxIdle != 0 && p.idle >= p.MaxIdle {
-		return c.Conn.Close()
+		return c.conn.Close()
 	}
 	p.pool.Put(c)
 	p.idle += 1

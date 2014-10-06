@@ -1,4 +1,9 @@
 // Redis implements basic connections and pooling to redis servers.
+//
+// This package operates with streams of data (io.Reader). As necessry
+// the package will cache data locally before read by clients, for example
+// when reading successive elements of an array before consuming each
+// element's contents.
 package redis
 
 import (
@@ -15,17 +20,19 @@ import (
 
 // Conn represents an open connection to a redis server.
 type Conn struct {
-	net.Conn
+	conn         net.Conn
 	whence       *Pool
 	openCommands int
 	commandLock  *sync.Mutex
 	reply        *resp.RESP
+
+	sub *sub
 }
 
 // Dial connects to the redis server.
 func Dial(network, address string) (*Conn, error) {
 	c, err := net.Dial(network, address)
-	conn := &Conn{Conn: c, commandLock: &sync.Mutex{}}
+	conn := &Conn{conn: c, commandLock: &sync.Mutex{}}
 	conn.reply = resp.New(c)
 	return conn, err
 }
@@ -33,7 +40,7 @@ func Dial(network, address string) (*Conn, error) {
 // DialTimeout acts like Dial but takes a timeout. The timeout includes name resolution, if required.
 func DialTimeout(network, address string, timeout time.Duration) (*Conn, error) {
 	c, err := net.DialTimeout(network, address, timeout)
-	conn := &Conn{Conn: c, commandLock: &sync.Mutex{}}
+	conn := &Conn{conn: c, commandLock: &sync.Mutex{}}
 	conn.reply = resp.New(c)
 	return conn, err
 }
@@ -62,8 +69,8 @@ func (c *Conn) Command(command string, args int) (*Cmd, error) {
 	c.commandLock.Lock()
 	c.openCommands += 1
 
-	fmt.Fprintf(c, "*%d\r\n", args+1)
-	cmd := &Cmd{c, c}
+	fmt.Fprintf(c.conn, "*%d\r\n", args+1)
+	cmd := &Cmd{c.conn, c}
 	cmd.WriteArgumentString(command)
 	return cmd, nil
 }
@@ -80,7 +87,7 @@ func (c *Conn) Close() error {
 
 // Destory always destroys the connection.
 func (c *Conn) Destroy() error {
-	return c.Conn.Close()
+	return c.conn.Close()
 }
 
 // Resp reads a RESP from the connection

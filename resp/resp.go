@@ -36,6 +36,26 @@ var redisTypeMap map[string]RedisType = map[string]RedisType{
 	"*": Array,
 }
 
+// String returns a string representation of r.
+func (r RedisType) String() string {
+	switch r {
+	case SimpleString:
+		return "simple string"
+	case Error:
+		return "error"
+	case Integer:
+		return "integer"
+	case BulkString:
+		return "bulk string"
+	case Array:
+		return "array"
+	case Null:
+		return "null"
+	default:
+		return "invalid or unknown"
+	}
+}
+
 var (
 	InvalidResponse error = errors.New("invalid response")
 	InvalidType           = errors.New("wrong redis type requested")
@@ -45,9 +65,10 @@ var (
 // by the method for their correct type. While type can be checked as many times as the caller
 // wishes, each value may only be read once.
 type RESP struct {
-	r         io.Reader
-	length    int64
-	redisType RedisType
+	r            io.Reader
+	length       int64
+	redisType    RedisType
+	lastWasArray *RESPArray
 }
 
 // New creates a new RESP value from the given reader.
@@ -57,10 +78,15 @@ func New(r io.Reader) *RESP {
 
 // Type determines the redis type of a RESP.
 func (r *RESP) Type() RedisType {
+	if r.lastWasArray != nil {
+		r.lastWasArray.Cache()
+		r.lastWasArray = nil
+	}
+
 	if r.redisType == Unknown {
 		firstByte := make([]byte, 1)
-		n, err := io.ReadFull(r.r, firstByte)
-		if err != nil {
+		n, err := r.r.Read(firstByte)
+		if err != nil && err != io.EOF {
 			return Invalid
 		}
 		if n != 1 {
@@ -78,6 +104,7 @@ func (r *RESP) Type() RedisType {
 		case SimpleString, Integer, Error:
 			r.redisType = t
 		default:
+			fmt.Println("invalid byte:", firstByte)
 			r.redisType = Invalid
 		}
 	}
@@ -153,25 +180,33 @@ func (r *RESP) Array() (*RESPArray, error) {
 	if r.Type() != Array {
 		return nil, InvalidType
 	}
-	defer r.resetType()
 
-	elements := make(chan *RESP)
+	elements := make(chan *RESP, 1)
 	array := &RESPArray{
 		length: int(r.length),
 		c:      elements,
 	}
+	r.lastWasArray = array
 
-	go func() {
-		for err := (error)(nil); err == nil; {
+	r.resetType()
+	go func(l int) {
+		for readElems := 0; readElems < l; readElems++ {
 			elem := New(r.r)
+			if elem.Type() == BulkString {
+				head, _ := elem.BulkString()
+				r.r = elem.r
+				elem.r = head
+				elem.redisType = BulkString
+			}
 			elements <- elem
 		}
 		close(elements)
-	}()
+	}(int(r.length))
 
 	return array, nil
 }
 
+// String returns a string representation of r. It consumes the content.
 func (r *RESP) String() string {
 	switch r.Type() {
 	case SimpleString:
@@ -225,7 +260,8 @@ func (r *RESPArray) Next() *RESP {
 		r.cached = r.cached[1:]
 		return ret
 	}
-	return <-r.c
+	elem := <-r.c
+	return elem
 }
 
 // Cache reads the next RESP item and stores it in memory so subsequent items
@@ -241,6 +277,7 @@ func (r *RESPArray) Len() int {
 	return r.length
 }
 
+// String returns a string representation of r. It consumes all of r's elements.
 func (r *RESPArray) String() string {
 	buf := bytes.NewBufferString("[")
 	buf.WriteString(r.Next().String())

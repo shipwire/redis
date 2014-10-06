@@ -4,6 +4,10 @@
 
 Redis implements basic connections and pooling to redis servers.
 
+This package operates with streams of data (io.Reader). As necessry the package
+will cache data locally before read by clients, for example when reading
+successive elements of an array before consuming each element's contents.
+
 ## Usage
 
 #### type Cmd
@@ -51,7 +55,6 @@ argument.
 
 ```go
 type Conn struct {
-	net.Conn
 }
 ```
 
@@ -110,6 +113,25 @@ func (c *Conn) Resp() *resp.RESP
 ```
 Resp reads a RESP from the connection
 
+#### func (*Conn) Subscribe
+
+```go
+func (c *Conn) Subscribe(channel string, messages chan<- *resp.RESP) error
+```
+Subscribe listens on c for published messages on the a channel. This method will
+either return an error right away or block while sending received messages on
+the messges channel until it receives a signal on the done channel. This
+connection should not be reused for another purpose.
+
+#### func (*Conn) Unsubscribe
+
+```go
+func (c *Conn) Unsubscribe(channel string, ch chan<- *resp.RESP)
+```
+Unsubscribe unregisters a channel from receiving messages on a redis channel.
+After unsubscribe returns, it is guaranteed that ch will receive no more
+messages.
+
 #### type Pool
 
 ```go
@@ -143,8 +165,25 @@ func (p *Pool) Conn() (*Conn, error)
 ```
 Conn attempts to get or create a connection, depending on if there are any idle
 connections.
+
+#### func (*Pool) Subscribe
+
+```go
+func (p *Pool) Subscribe(channel string, ch chan<- *resp.RESP) error
+```
+Subscribe registers a channel of RESP values to a redis pubsub channel.
+
+#### func (*Pool) Unsubscribe
+
+```go
+func (p *Pool) Unsubscribe(channel string, ch chan<- *resp.RESP) error
+```
+Unsubscribe unregisters a channel of RESP values from a redis pubsub channel. If
+and after Unsubscribe returns with no error, it is guaranteed that ch will
+receive no more messages.
 # redis
 --
+Command redis is a CLI for redis.
 # resp
 --
     import "bitbucket.org/shipwire/redis/resp"
@@ -221,6 +260,7 @@ SimpleString returns the value of a RESP as a simple string
 ```go
 func (r *RESP) String() string
 ```
+String returns a string representation of r. It consumes the content.
 
 #### func (*RESP) Type
 
@@ -265,6 +305,7 @@ Next returns the next RESP item in the RESPArray.
 ```go
 func (r *RESPArray) String() string
 ```
+String returns a string representation of r. It consumes all of r's elements.
 
 #### type RedisType
 
@@ -287,3 +328,10 @@ const (
 	Null
 )
 ```
+
+#### func (RedisType) String
+
+```go
+func (r RedisType) String() string
+```
+String returns a string representation of r.
