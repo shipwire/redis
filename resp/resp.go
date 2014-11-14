@@ -11,7 +11,7 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"github.com/shipwire/swio"
+	"github.com/shipwire/swutil/swio"
 )
 
 // RedisType represents one of the five types RESP values may take or it is unknown or invalid.
