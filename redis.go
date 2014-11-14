@@ -15,7 +15,7 @@ import (
 
 	"bytes"
 
-	"bitbucket.org/shipwire/redis/resp"
+	"github.com/shipwire/redis/resp"
 )
 
 // Conn represents an open connection to a redis server.
