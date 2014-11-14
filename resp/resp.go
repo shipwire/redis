@@ -79,7 +79,7 @@ func New(r io.Reader) *RESP {
 // Type determines the redis type of a RESP.
 func (r *RESP) Type() RedisType {
 	if r.lastWasArray != nil {
-		r.lastWasArray.Cache()
+		r.lastWasArray.cache()
 		r.lastWasArray = nil
 	}
 
@@ -104,7 +104,6 @@ func (r *RESP) Type() RedisType {
 		case SimpleString, Integer, Error:
 			r.redisType = t
 		default:
-			fmt.Println("invalid byte:", firstByte)
 			r.redisType = Invalid
 		}
 	}
@@ -127,11 +126,38 @@ func (r *RESP) SimpleString() (string, error) {
 	}
 	defer r.resetType()
 
-	scanner := bufio.NewScanner(r.r)
-	if !scanner.Scan() {
-		return "", scanner.Err()
+	buf := &bytes.Buffer{}
+	b := bufio.NewReader(r.r)
+
+	expectNL := false
+	for {
+		ru, _, err := b.ReadRune()
+		if err == io.EOF {
+			return buf.String(), io.ErrUnexpectedEOF
+		}
+		if err != nil {
+			return "", err
+		}
+		if ru == '\n' && expectNL {
+			s := buf.String()
+			// get buffered bytes back
+			reset := &bytes.Buffer{}
+			b.WriteTo(reset)
+			r.r = io.MultiReader(reset, r.r)
+			return s, nil
+		}
+		if expectNL {
+			buf.WriteRune('\r')
+			expectNL = false
+		}
+		if ru == '\r' {
+			expectNL = true
+			continue
+		}
+		buf.WriteRune(ru)
 	}
-	return scanner.Text(), nil
+
+	return buf.String(), io.ErrUnexpectedEOF
 }
 
 // Error returns the value of a RESP as an error
@@ -186,17 +212,37 @@ func (r *RESP) Array() (*RESPArray, error) {
 		length: int(r.length),
 		c:      elements,
 	}
-	r.lastWasArray = array
 
 	r.resetType()
 	go func(l int) {
 		for readElems := 0; readElems < l; readElems++ {
 			elem := New(r.r)
-			if elem.Type() == BulkString {
-				head, _ := elem.BulkString()
+			elem.lastWasArray = r.lastWasArray
+			switch elem.Type() {
+			case SimpleString:
+				s, _ := elem.SimpleString()
 				r.r = elem.r
-				elem.r = head
+				er := bytes.NewBufferString(s)
+				er.WriteString("\r\n")
+				elem.r = er
+				elem.redisType = SimpleString
+			case Error:
+				e := r.Error()
+				elem.r = bytes.NewBufferString(e.Error())
+				elem.redisType = Error
+			case Integer:
+				i, _ := r.Int()
+				elem.r = bytes.NewBufferString(fmt.Sprint(i))
+				elem.redisType = Integer
+			case Null:
+				elem.redisType = Null
+			case BulkString:
+				bs, _ := elem.BulkString()
+				r.r = elem.r
+				elem.r = io.MultiReader(bs, bytes.NewBufferString("\r\n"))
 				elem.redisType = BulkString
+			case Array:
+				r.lastWasArray = array
 			}
 			elements <- elem
 		}
@@ -264,10 +310,10 @@ func (r *RESPArray) Next() *RESP {
 	return elem
 }
 
-// Cache reads the next RESP item and stores it in memory so subsequent items
+// cache reads the all remaining elements and stores them in memory so subsequent items
 // may also be read.
-func (r *RESPArray) Cache() {
-	if elem := <-r.c; elem != nil {
+func (r *RESPArray) cache() {
+	for elem := range r.c {
 		r.cached = append(r.cached, elem)
 	}
 }
