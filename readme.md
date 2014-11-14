@@ -1,4 +1,7 @@
 # redis
+
+[![Build Status](https://travis-ci.org/shipwire/redis.svg?branch=master)](https://travis-ci.org/shipwire/redis) [![GoDoc](https://godoc.org/github.com/shipwire/redis?status.svg)](https://godoc.org/github.com/shipwire/redis)
+
 --
     import "github.com/shipwire/redis"
 
