@@ -12,8 +12,8 @@ import (
 
 	"bufio"
 
-	"bitbucket.org/shipwire/redis"
-	"bitbucket.org/shipwire/redis/resp"
+	"github.com/shipwire/redis"
+	"github.com/shipwire/redis/resp"
 )
 
 var messages = make(chan *resp.RESP, 10)

@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"sync"
 
-	"bitbucket.org/shipwire/redis/resp"
+	"github.com/shipwire/redis/resp"
 )
 
 type sub struct {

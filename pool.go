@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/shipwire/redis/resp"
+	"github.com/shipwire/redis/resp"
 )
 
 // Pool maintains a collection of idle Redis connections.
