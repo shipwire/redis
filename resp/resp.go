@@ -225,11 +225,11 @@ func (r *RESP) Array() (*RESPArray, error) {
 				elem.r = er
 				elem.redisType = SimpleString
 			case Error:
-				e := r.Error()
+				e := elem.Error()
 				elem.r = bytes.NewBufferString(e.Error())
 				elem.redisType = Error
 			case Integer:
-				i, _ := r.Int()
+				i, _ := elem.Int()
 				elem.r = bytes.NewBufferString(fmt.Sprint(i))
 				elem.redisType = Integer
 			case Null:
