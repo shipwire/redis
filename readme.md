@@ -1,6 +1,6 @@
 # redis
 --
-    import "bitbucket.org/shipwire/redis"
+    import "github.com/shipwire/redis"
 
 Redis implements basic connections and pooling to redis servers.
 
@@ -186,7 +186,7 @@ receive no more messages.
 Command redis is a CLI for redis.
 # resp
 --
-    import "bitbucket.org/shipwire/redis/resp"
+    import "github.com/shipwire/redis/resp"
 
 Resp implements the REdis Serialization Protocol with the particular aim to
 communicate with Redis. See http://redis.io/topics/protocol for more
