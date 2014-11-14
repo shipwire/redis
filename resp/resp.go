@@ -141,9 +141,7 @@ func (r *RESP) SimpleString() (string, error) {
 		if ru == '\n' && expectNL {
 			s := buf.String()
 			// get buffered bytes back
-			reset := &bytes.Buffer{}
-			b.WriteTo(reset)
-			r.r = io.MultiReader(reset, r.r)
+			r.r = io.MultiReader(b, r.r)
 			return s, nil
 		}
 		if expectNL {
