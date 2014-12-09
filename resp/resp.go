@@ -195,7 +195,7 @@ func (r *RESP) BulkString() (io.Reader, error) {
 
 	head, tail := swio.ForkReader(r.r, int(r.length+2))
 	r.r = tail
-	return io.LimitReader(head, r.length), nil
+	return fastForwardReaderTail(head, r.length, 2), nil
 }
 
 // Array returns a channel on which callers can receive successive
