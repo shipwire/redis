@@ -1,11 +1,8 @@
 # redis
-
-[![Build Status](https://travis-ci.org/shipwire/redis.svg?branch=master)](https://travis-ci.org/shipwire/redis) [![GoDoc](https://godoc.org/github.com/shipwire/redis?status.svg)](https://godoc.org/github.com/shipwire/redis)
-
 --
     import "github.com/shipwire/redis"
 
-Redis implements basic connections and pooling to redis servers.
+Package redis implements basic connections and pooling to redis servers.
 
 This package operates with streams of data (io.Reader). As necessry the package
 will cache data locally before read by clients, for example when reading
@@ -100,7 +97,7 @@ queues.
 ```go
 func (c *Conn) Destroy() error
 ```
-Destory always destroys the connection.
+Destroy always destroys the connection.
 
 #### func (*Conn) RawCmd
 
@@ -184,25 +181,54 @@ func (p *Pool) Unsubscribe(channel string, ch chan<- *resp.RESP) error
 Unsubscribe unregisters a channel of RESP values from a redis pubsub channel. If
 and after Unsubscribe returns with no error, it is guaranteed that ch will
 receive no more messages.
-# redis
---
-Command redis is a CLI for redis.
+
 # resp
 --
     import "github.com/shipwire/redis/resp"
 
-Resp implements the REdis Serialization Protocol with the particular aim to
-communicate with Redis. See http://redis.io/topics/protocol for more
+Package resp implements the REdis Serialization Protocol with the particular aim
+to communicate with Redis. See http://redis.io/topics/protocol for more
 information.
 
 ## Usage
 
 ```go
 var (
-	InvalidResponse error = errors.New("invalid response")
-	InvalidType           = errors.New("wrong redis type requested")
+	ErrInvalidResponse = errors.New("invalid response")
+	ErrInvalidType     = errors.New("wrong redis type requested")
 )
 ```
+RESP errors
+
+#### type Array
+
+```go
+type Array struct {
+}
+```
+
+Array contains a sequence of RESP items.
+
+#### func (*Array) Len
+
+```go
+func (r *Array) Len() int
+```
+Len returns the total number of items in the Array.
+
+#### func (*Array) Next
+
+```go
+func (r *Array) Next() *RESP
+```
+Next returns the next RESP item in the Array.
+
+#### func (*Array) String
+
+```go
+func (r *Array) String() string
+```
+String returns a string representation of r. It consumes all of r's elements.
 
 #### type RESP
 
@@ -225,7 +251,7 @@ New creates a new RESP value from the given reader.
 #### func (*RESP) Array
 
 ```go
-func (r *RESP) Array() (*RESPArray, error)
+func (r *RESP) Array() (*Array, error)
 ```
 Array returns a channel on which callers can receive successive elements of the
 RESP array.
@@ -272,44 +298,6 @@ func (r *RESP) Type() RedisType
 ```
 Type determines the redis type of a RESP.
 
-#### type RESPArray
-
-```go
-type RESPArray struct {
-}
-```
-
-RESPArray contains a sequence of RESP items.
-
-#### func (*RESPArray) Cache
-
-```go
-func (r *RESPArray) Cache()
-```
-Cache reads the next RESP item and stores it in memory so subsequent items may
-also be read.
-
-#### func (*RESPArray) Len
-
-```go
-func (r *RESPArray) Len() int
-```
-Len returns the total number of items in the RESPArray.
-
-#### func (*RESPArray) Next
-
-```go
-func (r *RESPArray) Next() *RESP
-```
-Next returns the next RESP item in the RESPArray.
-
-#### func (*RESPArray) String
-
-```go
-func (r *RESPArray) String() string
-```
-String returns a string representation of r. It consumes all of r's elements.
-
 #### type RedisType
 
 ```go
@@ -321,16 +309,17 @@ or invalid.
 
 ```go
 const (
-	Unknown RedisType = iota
-	Invalid
-	SimpleString
-	Error
-	Integer
-	BulkString
-	Array
-	Null
+	UnknownType RedisType = iota
+	InvalidType
+	SimpleStringType
+	ErrorType
+	IntegerType
+	BulkStringType
+	ArrayType
+	NullType
 )
 ```
+RESP types
 
 #### func (RedisType) String
 
