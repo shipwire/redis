@@ -149,12 +149,12 @@ func (p *sub) watch() {
 
 func (p *sub) read() {
 	switch p.conn.Resp().Type() {
-	case resp.Unknown: // do nothing, we haven't read yet
-	case resp.Error:
+	case resp.UnknownType: // do nothing, we haven't read yet
+	case resp.ErrorType:
 		p.conn.Resp().Error()
-	case resp.Invalid:
+	case resp.InvalidType:
 		panic("redis pubsub: invalid message received")
-	case resp.Array:
+	case resp.ArrayType:
 		arr, _ := p.conn.Resp().Array()
 		p.receive(arr)
 	default:
@@ -163,7 +163,7 @@ func (p *sub) read() {
 	}
 }
 
-func (p *sub) receive(r *resp.RESPArray) {
+func (p *sub) receive(r *resp.Array) {
 	first := r.Next()
 
 	rd, err := first.BulkString()

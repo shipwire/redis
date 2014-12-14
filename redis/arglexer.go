@@ -16,7 +16,7 @@ type argLexer struct {
 }
 
 func (l *argLexer) getargs() []string {
-	args := make([]string, 0)
+	var args []string
 	for arg := range l.args {
 		args = append(args, arg)
 	}
@@ -32,11 +32,11 @@ func newLexer(argText string) *argLexer {
 	return a
 }
 
-func (a *argLexer) run() {
+func (l *argLexer) run() {
 	for state := lexArg; state != nil; {
-		state = state(a)
+		state = state(l)
 	}
-	close(a.args)
+	close(l.args)
 }
 
 func lexArg(l *argLexer) stateFn {
@@ -121,7 +121,7 @@ func (l *argLexer) acceptNonQuote() {
 	preceedingSlashes := 0
 	for r := l.next(); (r != '"' || preceedingSlashes%2 == 1) && r != eof; r = l.next() {
 		if r == '\\' {
-			preceedingSlashes += 1
+			preceedingSlashes++
 		} else {
 			preceedingSlashes = 0
 		}

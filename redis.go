@@ -1,4 +1,4 @@
-// Redis implements basic connections and pooling to redis servers.
+// Package redis implements basic connections and pooling to redis servers.
 //
 // This package operates with streams of data (io.Reader). As necessry
 // the package will cache data locally before read by clients, for example
@@ -67,7 +67,7 @@ func (c *Conn) RawCmd(command string, args ...string) error {
 // only allows one open command at a time and will block callers to prevent jumbled queues.
 func (c *Conn) Command(command string, args int) (*Cmd, error) {
 	c.commandLock.Lock()
-	c.openCommands += 1
+	c.openCommands++
 
 	fmt.Fprintf(c.conn, "*%d\r\n", args+1)
 	cmd := &Cmd{c.conn, c}
@@ -80,12 +80,11 @@ func (c *Conn) Command(command string, args int) (*Cmd, error) {
 func (c *Conn) Close() error {
 	if c.whence != nil {
 		return c.whence.put(c)
-	} else {
-		return c.Destroy()
 	}
+	return c.Destroy()
 }
 
-// Destory always destroys the connection.
+// Destroy always destroys the connection.
 func (c *Conn) Destroy() error {
 	return c.conn.Close()
 }
@@ -93,7 +92,7 @@ func (c *Conn) Destroy() error {
 // Resp reads a RESP from the connection
 func (c *Conn) Resp() *resp.RESP {
 	defer func() {
-		c.openCommands -= 1
+		c.openCommands--
 	}()
 	return c.reply
 }

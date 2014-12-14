@@ -1,4 +1,4 @@
-// Resp implements the REdis Serialization Protocol with the particular aim to communicate with
+// Package resp implements the REdis Serialization Protocol with the particular aim to communicate with
 // Redis. See http://redis.io/topics/protocol for more information.
 package resp
 
@@ -17,48 +17,50 @@ import (
 // RedisType represents one of the five types RESP values may take or it is unknown or invalid.
 type RedisType int
 
+// RESP types
 const (
-	Unknown RedisType = iota
-	Invalid
-	SimpleString
-	Error
-	Integer
-	BulkString
-	Array
-	Null
+	UnknownType RedisType = iota
+	InvalidType
+	SimpleStringType
+	ErrorType
+	IntegerType
+	BulkStringType
+	ArrayType
+	NullType
 )
 
-var redisTypeMap map[string]RedisType = map[string]RedisType{
-	"+": SimpleString,
-	"-": Error,
-	":": Integer,
-	"$": BulkString,
-	"*": Array,
+var redisTypeMap = map[string]RedisType{
+	"+": SimpleStringType,
+	"-": ErrorType,
+	":": IntegerType,
+	"$": BulkStringType,
+	"*": ArrayType,
 }
 
 // String returns a string representation of r.
 func (r RedisType) String() string {
 	switch r {
-	case SimpleString:
+	case SimpleStringType:
 		return "simple string"
-	case Error:
+	case ErrorType:
 		return "error"
-	case Integer:
+	case IntegerType:
 		return "integer"
-	case BulkString:
+	case BulkStringType:
 		return "bulk string"
-	case Array:
+	case ArrayType:
 		return "array"
-	case Null:
+	case NullType:
 		return "null"
 	default:
 		return "invalid or unknown"
 	}
 }
 
+// RESP errors
 var (
-	InvalidResponse error = errors.New("invalid response")
-	InvalidType           = errors.New("wrong redis type requested")
+	ErrInvalidResponse = errors.New("invalid response")
+	ErrInvalidType     = errors.New("wrong redis type requested")
 )
 
 // RESP reads successive values in REdis Serialization Protocol. Values may be read
@@ -68,7 +70,7 @@ type RESP struct {
 	r            io.Reader
 	length       int64
 	redisType    RedisType
-	lastWasArray *RESPArray
+	lastWasArray *Array
 }
 
 // New creates a new RESP value from the given reader.
@@ -83,35 +85,35 @@ func (r *RESP) Type() RedisType {
 		r.lastWasArray = nil
 	}
 
-	if r.redisType == Unknown {
+	if r.redisType == UnknownType {
 		firstByte := make([]byte, 1)
 		n, err := r.r.Read(firstByte)
 		if err != nil && err != io.EOF {
-			return Invalid
+			return InvalidType
 		}
 		if n != 1 {
-			return Unknown
+			return UnknownType
 		}
 
 		t := redisTypeMap[string(firstByte)]
 		switch t {
-		case BulkString, Array:
+		case BulkStringType, ArrayType:
 			r.length, err = extractLength(r.r)
 			if r.length == -1 {
-				return Null
+				return NullType
 			}
 			fallthrough
-		case SimpleString, Integer, Error:
+		case SimpleStringType, IntegerType, ErrorType:
 			r.redisType = t
 		default:
-			r.redisType = Invalid
+			r.redisType = InvalidType
 		}
 	}
 	return r.redisType
 }
 
 func (r *RESP) resetType() {
-	r.redisType = Unknown
+	r.redisType = UnknownType
 }
 
 func extractLength(r io.Reader) (i int64, err error) {
@@ -121,8 +123,8 @@ func extractLength(r io.Reader) (i int64, err error) {
 
 // SimpleString returns the value of a RESP as a simple string
 func (r *RESP) SimpleString() (string, error) {
-	if r.Type() != SimpleString {
-		return "", InvalidType
+	if r.Type() != SimpleStringType {
+		return "", ErrInvalidType
 	}
 	defer r.resetType()
 
@@ -160,8 +162,8 @@ func (r *RESP) SimpleString() (string, error) {
 
 // Error returns the value of a RESP as an error
 func (r *RESP) Error() error {
-	if r.Type() != Error {
-		return InvalidType
+	if r.Type() != ErrorType {
+		return ErrInvalidType
 	}
 	defer r.resetType()
 
@@ -174,8 +176,8 @@ func (r *RESP) Error() error {
 
 // Int returns the value of a RESP as an integer.
 func (r *RESP) Int() (int64, error) {
-	if r.Type() != Integer {
-		return 0, InvalidType
+	if r.Type() != IntegerType {
+		return 0, ErrInvalidType
 	}
 	defer r.resetType()
 
@@ -188,8 +190,8 @@ func (r *RESP) Int() (int64, error) {
 
 // BulkString returns the value of a RESP as a reader.
 func (r *RESP) BulkString() (io.Reader, error) {
-	if r.Type() != BulkString {
-		return nil, InvalidType
+	if r.Type() != BulkStringType {
+		return nil, ErrInvalidType
 	}
 	defer r.resetType()
 
@@ -200,13 +202,13 @@ func (r *RESP) BulkString() (io.Reader, error) {
 
 // Array returns a channel on which callers can receive successive
 // elements of the RESP array.
-func (r *RESP) Array() (*RESPArray, error) {
-	if r.Type() != Array {
-		return nil, InvalidType
+func (r *RESP) Array() (*Array, error) {
+	if r.Type() != ArrayType {
+		return nil, ErrInvalidType
 	}
 
 	elements := make(chan *RESP, 1)
-	array := &RESPArray{
+	array := &Array{
 		length: int(r.length),
 		c:      elements,
 	}
@@ -217,29 +219,29 @@ func (r *RESP) Array() (*RESPArray, error) {
 			elem := New(r.r)
 			elem.lastWasArray = r.lastWasArray
 			switch elem.Type() {
-			case SimpleString:
+			case SimpleStringType:
 				s, _ := elem.SimpleString()
 				r.r = elem.r
 				er := bytes.NewBufferString(s)
 				er.WriteString("\r\n")
 				elem.r = er
-				elem.redisType = SimpleString
-			case Error:
+				elem.redisType = SimpleStringType
+			case ErrorType:
 				e := elem.Error()
 				elem.r = bytes.NewBufferString(e.Error())
-				elem.redisType = Error
-			case Integer:
+				elem.redisType = ErrorType
+			case IntegerType:
 				i, _ := elem.Int()
 				elem.r = bytes.NewBufferString(fmt.Sprint(i))
-				elem.redisType = Integer
-			case Null:
-				elem.redisType = Null
-			case BulkString:
+				elem.redisType = IntegerType
+			case NullType:
+				elem.redisType = NullType
+			case BulkStringType:
 				bs, _ := elem.BulkString()
 				r.r = elem.r
 				elem.r = io.MultiReader(bs, bytes.NewBufferString("\r\n"))
-				elem.redisType = BulkString
-			case Array:
+				elem.redisType = BulkStringType
+			case ArrayType:
 				r.lastWasArray = array
 			}
 			elements <- elem
@@ -253,21 +255,21 @@ func (r *RESP) Array() (*RESPArray, error) {
 // String returns a string representation of r. It consumes the content.
 func (r *RESP) String() string {
 	switch r.Type() {
-	case SimpleString:
+	case SimpleStringType:
 		s, err := r.SimpleString()
 		if err != nil {
 			return err.Error()
 		}
 		return s
-	case Error:
+	case ErrorType:
 		return r.Error().Error()
-	case Integer:
+	case IntegerType:
 		i, err := r.Int()
 		if err != nil {
 			return err.Error()
 		}
 		return fmt.Sprint(i)
-	case BulkString:
+	case BulkStringType:
 		b, err := r.BulkString()
 		if err != nil {
 			return err.Error()
@@ -277,28 +279,28 @@ func (r *RESP) String() string {
 			return err.Error()
 		}
 		return string(s)
-	case Array:
+	case ArrayType:
 		a, err := r.Array()
 		if err != nil {
 			return err.Error()
 		}
 		return a.String()
-	case Null:
+	case NullType:
 		return "NULL"
 	default:
 		return "Invalid RESP format"
 	}
 }
 
-// RESPArray contains a sequence of RESP items.
-type RESPArray struct {
+// Array contains a sequence of RESP items.
+type Array struct {
 	length int
 	c      <-chan *RESP
 	cached []*RESP
 }
 
-// Next returns the next RESP item in the RESPArray.
-func (r *RESPArray) Next() *RESP {
+// Next returns the next RESP item in the Array.
+func (r *Array) Next() *RESP {
 	if len(r.cached) > 0 {
 		ret := r.cached[0]
 		r.cached = r.cached[1:]
@@ -310,19 +312,19 @@ func (r *RESPArray) Next() *RESP {
 
 // cache reads the all remaining elements and stores them in memory so subsequent items
 // may also be read.
-func (r *RESPArray) cache() {
+func (r *Array) cache() {
 	for elem := range r.c {
 		r.cached = append(r.cached, elem)
 	}
 }
 
-// Len returns the total number of items in the RESPArray.
-func (r *RESPArray) Len() int {
+// Len returns the total number of items in the Array.
+func (r *Array) Len() int {
 	return r.length
 }
 
 // String returns a string representation of r. It consumes all of r's elements.
-func (r *RESPArray) String() string {
+func (r *Array) String() string {
 	buf := bytes.NewBufferString("[")
 	buf.WriteString(r.Next().String())
 

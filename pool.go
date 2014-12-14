@@ -39,7 +39,7 @@ func (p *Pool) put(c *Conn) error {
 		return c.conn.Close()
 	}
 	p.pool.Put(c)
-	p.idle += 1
+	p.idle++
 	return nil
 }
 
@@ -50,7 +50,7 @@ func (p *Pool) Conn() (*Conn, error) {
 	if client == nil || !ok {
 		return p.newConn()
 	}
-	p.idle -= 1
+	p.idle--
 	return client, nil
 }
 
@@ -67,7 +67,7 @@ func (p *Pool) newConn() (c *Conn, err error) {
 
 	if p.Password != "" {
 		c.RawCmd("AUTH", p.Password)
-		if r := c.Resp(); r.Type() == resp.Error {
+		if r := c.Resp(); r.Type() == resp.ErrorType {
 			return nil, r.Error()
 		}
 	}
