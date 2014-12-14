@@ -19,13 +19,13 @@ var tests = []test{
 	{
 		name:     "null bulk string",
 		resp:     bytes.NewBufferString("$-1\r\n"),
-		typ:      Null,
+		typ:      NullType,
 		expected: nil,
 	},
 	{
 		name:     "null array",
 		resp:     bytes.NewBufferString("*-1\r\n"),
-		typ:      Null,
+		typ:      NullType,
 		expected: nil,
 	},
 }
@@ -34,7 +34,7 @@ func TestSimpleString(t *testing.T) {
 	r := New(bytes.NewBufferString("+i'm a simple string\r\n"))
 	expected := "i'm a simple string"
 
-	if r.Type() != SimpleString {
+	if r.Type() != SimpleStringType {
 		t.Fatalf("Expected type SimpleString, saw %s", r.Type())
 	}
 
@@ -51,7 +51,7 @@ func TestError(t *testing.T) {
 	r := New(bytes.NewBufferString("-i'm an error\r\n"))
 	expected := errors.New("i'm an error")
 
-	if r.Type() != Error {
+	if r.Type() != ErrorType {
 		t.Fatalf("Expected type Error, saw %s", r.Type())
 	}
 
@@ -65,7 +65,7 @@ func TestInteger(t *testing.T) {
 	r := New(bytes.NewBufferString(":42"))
 	var expected int64 = 42
 
-	if r.Type() != Integer {
+	if r.Type() != IntegerType {
 		t.Fatalf("Expected type Integer, saw %s", r.Type())
 	}
 
@@ -82,7 +82,7 @@ func TestBulkString(t *testing.T) {
 	r := New(bytes.NewBufferString("$17\r\ni'm a bulk string\r\n"))
 	expected := bytes.NewBufferString("i'm a bulk string")
 
-	if r.Type() != BulkString {
+	if r.Type() != BulkStringType {
 		t.Fatalf("Expected type BulkString, saw %s", r.Type())
 	}
 
@@ -102,7 +102,7 @@ func TestBulkString(t *testing.T) {
 func TestArraySimple(t *testing.T) {
 	r := New(bytes.NewBufferString("*1\r\n+foo\r\n"))
 
-	if r.Type() != Array {
+	if r.Type() != ArrayType {
 		t.Fatalf("Expected type Array, saw %s", r.Type())
 	}
 
@@ -118,8 +118,8 @@ func TestArraySimple(t *testing.T) {
 	r1 := a.Next()
 	expectedSimpleString := "foo"
 
-	if r1.Type() != SimpleString {
-		t.Fatalf("Expected type %s, saw %s", SimpleString, r1.Type())
+	if r1.Type() != SimpleStringType {
+		t.Fatalf("Expected type %s, saw %s", SimpleStringType, r1.Type())
 	}
 
 	s, err := r1.SimpleString()
@@ -135,7 +135,7 @@ func TestArraySimple(t *testing.T) {
 func TestArrayBulk(t *testing.T) {
 	r := New(bytes.NewBufferString("*1\r\n$17\r\ni'm a bulk string\r\n"))
 
-	if r.Type() != Array {
+	if r.Type() != ArrayType {
 		t.Fatalf("Expected type Array, saw %s", r.Type())
 	}
 
@@ -151,7 +151,7 @@ func TestArrayBulk(t *testing.T) {
 	r1 := a.Next()
 
 	expectedBulkString := "i'm a bulk string"
-	if r1.Type() != BulkString {
+	if r1.Type() != BulkStringType {
 		t.Fatalf("Expected type BulkString, saw %s", r1.Type())
 	}
 
@@ -173,7 +173,7 @@ func TestArrayBulk(t *testing.T) {
 func TestArrayMany(t *testing.T) {
 	r := New(bytes.NewBufferString("*2\r\n+simple\r\n$17\r\ni'm a bulk string\r\n"))
 
-	if r.Type() != Array {
+	if r.Type() != ArrayType {
 		t.Fatalf("Expected type Array, saw %s", r.Type())
 	}
 
@@ -191,7 +191,7 @@ func TestArrayMany(t *testing.T) {
 	// first elem
 	expectedSimpleString := "simple"
 
-	if r1.Type() != SimpleString {
+	if r1.Type() != SimpleStringType {
 		t.Fatalf("Expected type SimpleString, saw %s", r1.Type())
 	}
 
@@ -206,7 +206,7 @@ func TestArrayMany(t *testing.T) {
 	// second elem
 	r2 := a.Next()
 	expectedBulkString := "i'm a bulk string"
-	if r2.Type() != BulkString {
+	if r2.Type() != BulkStringType {
 		t.Fatalf("Expected type BulkString, saw %s", r2.Type())
 	}
 
@@ -228,7 +228,7 @@ func TestArrayMany(t *testing.T) {
 func TestArrayManyCached(t *testing.T) {
 	r := New(bytes.NewBufferString("*2\r\n$3\r\nfoo\r\n$17\r\ni'm a bulk string\r\n"))
 
-	if r.Type() != Array {
+	if r.Type() != ArrayType {
 		t.Fatalf("Expected type Array, saw %s", r.Type())
 	}
 
@@ -246,7 +246,7 @@ func TestArrayManyCached(t *testing.T) {
 
 	// second elem, caching first
 	expectedBulkString := "i'm a bulk string"
-	if r2.Type() != BulkString {
+	if r2.Type() != BulkStringType {
 		t.Fatalf("Expected type BulkString, saw %s", r2.Type())
 	}
 
@@ -266,7 +266,7 @@ func TestArrayManyCached(t *testing.T) {
 	// first elem
 	expectedCachedString := "foo"
 
-	if r1.Type() != BulkString {
+	if r1.Type() != BulkStringType {
 		t.Fatalf("Expected type BulkString, saw %s", r1.Type())
 	}
 
