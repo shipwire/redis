@@ -326,13 +326,12 @@ func (r *Array) Len() int {
 // String returns a string representation of r. It consumes all of r's elements.
 func (r *Array) String() string {
 	buf := bytes.NewBufferString("[")
-	buf.WriteString(r.Next().String())
 
-	first := false
-	for elem := r.Next(); elem != nil; r.Next() {
-		if !first {
+	for i := 0; i < r.Len(); i++ {
+		if i != 0 {
 			buf.WriteString(",")
 		}
+		elem := r.Next()
 		buf.WriteString(elem.String())
 	}
 
